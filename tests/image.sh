@@ -95,9 +95,9 @@ function resume() {
 } 
 
 function main() {
-  echo "###################"
-  echo "## Starting test ##"
-  echo "###################"
+  echo "#########################"
+  echo "## Starting Image Test ##"
+  echo "#########################"
 
   printf "Setup workdir: "
   WORKDIR=$(mktemp -d)
