@@ -1,5 +1,8 @@
 #!/bin/bash
 
+
+COMMON_REQUIRED_BINS="nslookup grep tail awk"
+
 OK_CHECK=0
 TOTAL_CHECK=0
 
@@ -74,12 +77,24 @@ function resume() {
     printf "/${TOTAL_CHECK}\n"
     OK "Your ISP doesn't block external public DNS servers\n"
   fi
-} 
+}
+
+function check_bin() {
+  for bin in ${COMMON_REQUIRED_BINS}; do
+    which "${bin}" > /dev/null 2>&1
+    if [ "$?" -ne "0" ]; then
+      echo "Missing binary : ${bin}"
+      exit 1
+    fi
+  done
+}
 
 function main() {
-  echo "#######################"
-  echo "## Starting DNS Test ##"
-  echo "#######################"
+  echo "########################"
+  echo "## Starting DNS1 Test ##"
+  echo "########################"
+
+  check_bin
 
   for resolver_v4 in ${PUBLIC_DNS_RESOLVERS_v4}; do
     check_dns "${resolver_v4}"

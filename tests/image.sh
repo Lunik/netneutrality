@@ -4,6 +4,10 @@
 
 # Automation of https://ip.lafibre.info/neutralite.php
 
+LINUX_REQUIRED_BINS="md5sum sha256sum"
+MACOS_REQUIRED_BINS="md5 shasum"
+COMMON_REQUIRED_BINS="grep curl awk"
+
 # md5sum OR sha256sum
 HASH_ALGORITHM=md5sum
 
@@ -35,7 +39,7 @@ function macos_hash() {
       md5 -q "${image_path}"
       ;;
     sha256sum)
-      sha -a 256 "${image_path}" | awk '{ print $1 }'
+      shasum -a 256 "${image_path}" | awk '{ print $1 }'
       ;;
     *)
       echo "Unknown hash algorithm"
@@ -87,17 +91,46 @@ function resume() {
     KO "${OK_CHECK}"
     printf "/${TOTAL_CHECK}\n"
     KO "Your internet connection doesn't respect net neutrality standard. Check with your ISP provider...\n"
+    exit 1
   else
     OK "${OK_CHECK}"
     printf "/${TOTAL_CHECK}\n"
     OK "Net neutrality seems to be applied by your ISP provider, great news !\n"
+    exit 0
   fi
-} 
+}
+
+function check_bin() {
+  for bin in ${COMMON_REQUIRED_BINS}; do
+    which "${bin}" > /dev/null 2>&1
+    if [ "$?" -ne "0" ]; then
+      echo "Missing binary : ${bin}"
+      exit 1
+    fi
+  done
+
+  uname -a | grep "Darwin" > /dev/null 2>&1
+  if [ "$?" -eq "0" ]; then
+    specific_bins="${MACOS_REQUIRED_BINS}"
+  else
+    specific_bins="${LINUX_REQUIRED_BINS}"
+  fi
+
+  for bin in ${specific_bins}; do
+    which "${bin}" > /dev/null 2>&1
+    if [ "$?" -ne "0" ]; then
+      echo "Missing binary : ${bin}"
+      exit 1
+    fi
+  done
+}
 
 function main() {
   echo "#########################"
   echo "## Starting Image Test ##"
   echo "#########################"
+
+  check_bin
 
   printf "Setup workdir: "
   WORKDIR=$(mktemp -d)

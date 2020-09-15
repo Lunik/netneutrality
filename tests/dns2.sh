@@ -1,5 +1,7 @@
 #!/bin/bash
 
+COMMON_REQUIRED_BINS="nslookup grep tail awk"
+
 OK_CHECK=0
 TOTAL_CHECK=0
 
@@ -49,12 +51,24 @@ function resume() {
     printf "/${TOTAL_CHECK}\n"
     OK "Your DNS server can resolve anything, great news!\n"
   fi
-} 
+}
+
+function check_bin() {
+  for bin in ${COMMON_REQUIRED_BINS}; do
+    which "${bin}" > /dev/null 2>&1
+    if [ "$?" -ne "0" ]; then
+      echo "Missing binary : ${bin}"
+      exit 1
+    fi
+  done
+}
 
 function main() {
   echo "########################"
   echo "## Starting DNS2 Test ##"
   echo "########################"
+
+  check_bin
 
   for domain in ${TOP_50_DOMAINS}; do
     check_dns "${domain}"
