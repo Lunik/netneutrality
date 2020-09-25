@@ -5,7 +5,7 @@ COMMON_REQUIRED_BINS="nslookup grep tail awk"
 OK_CHECK=0
 TOTAL_CHECK=0
 
-TOP_50_DOMAINS="google.com youtube.com tmall.com baidu.com qq.com facebook.com sohu.com taobao.com 360.cn jd.com yahoo.com amazon.com wikipedia.org sina.com.cn weibo.com zoom.us live.com reddit.com netflix.com xinhuanet.com microsoft.com okezone.com vk.com office.com instagram.com alipay.com csdn.net myshopify.com yahoo.co.jp microsoftonline.com bongacams.com twitch.tv zhanqi.tv panda.tv google.com.hk bing.com naver.com ebay.com aliexpress.com china.com.cn amazon.in tianya.cn tribunnews.com google.co.in amazon.co.jp livejasmin.com adobe.com chaturbate.com twitter.com yandex.ru"
+TOP_50_DOMAINS="google.com youtube.com tmall.com baidu.com qq.com facebook.com sohu.com taobao.com 360.cn jd.com yahoo.com amazon.com wikipedia.org sina.com.cn weibo.com zoom.us live.com reddit.com netflix.com xinhuanet.com microsoft.com okezone.com vk.com office.com instagram.com alipay.com csdn.net myshopify.com yahoo.co.jp microsoftonline.com bongacams.com twitch.tv zhanqi.tv panda.tv google.com.hk bing.com naver.com ebay.com aliexpress.com china.com.cn amazon.in tianya.cn tribunnews.com google.co.in amazon.co.jp adobe.com twitter.com yandex.ru"
 
 function get_dns_servers() {
   cat /etc/resolv.conf | grep 'nameserver' | awk '{ print $2 }'
