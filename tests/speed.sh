@@ -16,6 +16,8 @@ FILE_FORMAT="3gp 7z aac aif apk asf au avi bin bz2 c com css dat deb divx dmg do
 FILE_SIZE="0 1 5 10 50 100 500 1k 5k 10k 50k 100k 500k 1M 5M 10M 50M 100M 1G 10G"
 SERVER_PORTS_HTTPS="443 444 554 585 843 1194 1935 5060 5061 6881 8080 8443 9001"
 SERVER_PORTS_HTTP="80 81"
+PROTOS="http https"
+IPVXS="4 6"
 
 FILE_PATTERN=@@size@@.@@format@@
 
@@ -147,6 +149,86 @@ function check_bin() {
   done
 }
 
+function main_file() {
+  size="${1}"
+  format="${2}"
+  ipvx="${3}"
+  proto="${4}"
+  port="${5}"
+  workdir="${6}"
+
+  file_id=$(echo ${FILE_PATTERN} | sed -e 's/@@size@@/'${size}'/' -e 's/@@format@@/'${format}'/')
+  file_path=$(echo ${BASE_URI_PATTERN} | sed -e 's/@@size@@/'${size}'/')
+
+  start_at=$(date +%s)
+  printf "Downloading file \"ipv${ipvx} ${proto} :${port} - ${file_id}\":\t"
+  download_file "${ipvx}" "${proto}" "${port}" "${file_path}" "${file_id}" "${workdir}"
+  if [ "$?" -eq "0" ]; then
+    end_at=$(date +%s)
+
+    delta=$((end_at-start_at))
+    uname -a | grep "Darwin" > /dev/null 2>&1
+    if [ "$?" -eq "0" ]; then
+      printf "$(date -r ${delta} +%Mm%Ss)\n"
+    else
+      printf "$(date -d "@${delta}" +%Mm%Ss)\n"
+    fi
+    times="${times}${delta}\n"
+
+    check_file "${ipvx}" "${proto}" "${port}" "${file_id}" "${workdir}"
+  else
+    KO "KO"
+    printf " - Unable to download the file\n"
+  fi
+  clear_file "${ipvx}" "${proto}" "${port}" "${file_id}" "${workdir}"
+}
+
+function loop() {
+  if [ "$#" -ne "6" ]; then
+    usage
+    exit 1
+  fi
+
+  workdir="${1}"
+  file_sizes="${2}"
+  file_formats="${3}"
+  protos="${4}"
+  ports="${5}"
+  ipvxs="${6}"
+
+  for size in $file_sizes; do
+    times=""
+    for format in $file_formats; do
+      for proto in $protos; do
+        if [ "$ports" == "all" ]; then
+          if [ "$proto" == "https" ]; then
+            ports2="$SERVER_PORTS_HTTPS"
+          elif [ "$proto" == "http" ]; then
+            ports2="$SERVER_PORTS_HTTP"
+          fi
+        else
+          ports1="$portss"
+        fi
+        for port in $ports2; do
+          for ipvx in $ipvxs; do
+            main_file "${size}" "${format}" "${ipvx}" "${proto}" "${port}" "${workdir}"
+          done
+        done
+      done
+    done
+    check_times "${times}"
+  done
+}
+
+function usage() {
+  echo -e "\nUsage : $0 all | $0 <size> <format> <ipvx> <proto> <port>"
+  echo -e "\t<size> : ${FILE_SIZE}"
+  echo -e "\t<format> : ${FILE_FORMAT}"
+  echo -e "\t<ipvx> : ${IPVXS}"
+  echo -e "\t<proto> : ${PROTOS}"
+  echo -e "\t<port> : http : ${SERVER_PORTS_HTTP} | https : ${SERVER_PORTS_HTTPS}"
+}
+
 function main() {
   echo "#########################"
   echo "## Starting Image Test ##"
@@ -162,48 +244,11 @@ function main() {
   curl -sSL "https://${BASE_HOSTNAME}/${HASH_ALGORITHM}.txt" > "${WORKDIR}/${HASH_ALGORITHM}.txt"
   OK "OK\n"
 
-  for size in $FILE_SIZE; do
-    times=""
-    for format in $FILE_FORMAT; do
-      for proto in http https; do
-        if [ "$proto" == "https" ]; then
-          PORTS="$SERVER_PORTS_HTTPS"
-        elif [ "$proto" == "http" ]; then
-          PORTS="$SERVER_PORTS_HTTP"
-        fi
-        for port in $PORTS; do
-          for ipvx in 4 6; do
-            file_id=$(echo ${FILE_PATTERN} | sed -e 's/@@size@@/'${size}'/' -e 's/@@format@@/'${format}'/')
-            file_path=$(echo ${BASE_URI_PATTERN} | sed -e 's/@@size@@/'${size}'/')
-
-            start_at=$(date +%s)
-            printf "Downloading file \"ipv${ipvx} ${proto} :${port} - ${file_id}\":\t"
-            download_file "${ipvx}" "${proto}" "${port}" "${file_path}" "${file_id}" "${WORKDIR}"
-            if [ "$?" -eq "0" ]; then
-              end_at=$(date +%s)
-
-              delta=$((end_at-start_at))
-              uname -a | grep "Darwin" > /dev/null 2>&1
-              if [ "$?" -eq "0" ]; then
-                printf "$(date -r ${delta} +%Mm%Ss)\n"
-              else
-                printf "$(date -d "@${delta}" +%Mm%Ss)\n"
-              fi
-              times="${times}${delta}\n"
-
-              check_file "${ipvx}" "${proto}" "${port}" "${file_id}" "${WORKDIR}"
-            else
-              KO "KO"
-              printf " - Unable to download the file\n"
-            fi
-            clear_file "${ipvx}" "${proto}" "${port}" "${file_id}" "${WORKDIR}"
-          done
-        done
-      done
-    done
-    check_times "${times}"
-  done
-
+  if [ "${1}" == "all" ]; then
+    loop "${WORKDIR}" "${FILE_SIZE}" "${FILE_FORMAT}" "${PROTOS}" "all" "${IPVXS}"
+  else
+    loop "${WORKDIR}" "${@}"
+  fi
 
   printf "Cleaning up workdir: "
   rm -rf "${WORKDIR}"
@@ -212,4 +257,4 @@ function main() {
   resume
 }
 
-main
+main "${@}"
