@@ -26,7 +26,7 @@ function check_dns() {
   TOTAL_CHECK=$((TOTAL_CHECK+1))
   domain="${1}"
 
-  printf "Checking ${domain} "
+  printf "Checking ${domain}\t\t"
   ip=$(nslookup --timeout=1 "${domain}" | grep Address: | tail -1 | awk '{ print $2 }')
   echo "${FAKE_IPS}" | grep "${ip}" > /dev/null 2>&1
   if [ "$?" -eq "1" ]; then

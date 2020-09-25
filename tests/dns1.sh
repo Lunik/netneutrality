@@ -53,7 +53,7 @@ function check_dns() {
   TOTAL_CHECK=$((TOTAL_CHECK+1))
   resolver="${1}"
 
-  printf "Checking ${resolver} "
+  printf "Checking ${resolver}\t\t"
   ip=$(nslookup --timeout=1 "${CHECK_DNS_ENTRY}" "${resolver}" | grep Address: | tail -1 | awk '{ print $2 }')
   if [ "${ip}" == "${CHECK_DNS_ENTRY_VALUE}" ]; then
     OK_CHECK=$((OK_CHECK+1))

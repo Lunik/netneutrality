@@ -53,7 +53,7 @@ function hash_calc() {
   if [ "$?" -eq "0" ]; then
     macos_hash "${image_path}"
   else
-    ${HASH_ALGORITHM} "${image_path}"
+    ${HASH_ALGORITHM} "${image_path}" | awk '{ print $1 }'
   fi
 }
 
@@ -62,7 +62,7 @@ function download_image() {
   proto="${2}"
   image_id="${3}"
   workdir="${4}"
-  curl -sSL -"${ipvx}" "https://${BASE_HOSTNAME}/${BASE_URI}/${image_id}" > "${workdir}/${ipvx}_${proto}_${image_id}"
+  curl -sSL -"${ipvx}" "${proto}://${BASE_HOSTNAME}/${BASE_URI}/${image_id}" > "${workdir}/${ipvx}_${proto}_${image_id}"
 }
 
 function check_image() {
@@ -71,7 +71,7 @@ function check_image() {
   proto="${2}"
   image_id="${3}"
   workdir="${4}"
-  printf "Checking image \"ipv${ipvx} ${proto} - ${image_id}\": "
+  printf "Checking image \"ipv${ipvx} ${proto} - ${image_id}\":\t\t"
   calculated_hashsum=$(hash_calc "${workdir}/${ipvx}_${proto}_${image_id}")
   real_hashsum=$(get_checksum "${image_id}")
   if [ "${calculated_hashsum}" == "${real_hashsum}" ]; then
@@ -81,6 +81,15 @@ function check_image() {
     KO "KO"
     printf " - Got ${calculated_hashsum} instead of ${real_hashsum}\n"
   fi
+}
+
+function clear_image() {
+  ipvx="${1}"
+  proto="${2}"
+  image_id="${3}"
+  workdir="${4}"
+
+  rm "${workdir}/${ipvx}_${proto}_${image_id}"
 }
 
 function resume() {
@@ -148,13 +157,14 @@ function main() {
     done
   done
 
-  for ipvx in 4 6; do
-    for proto in http https; do
-      for i in {1..10}; do
+  for i in {1..10}; do
+    for ipvx in 4 6; do
+      for proto in http https; do
         image_id=$(echo ${IMAGE_PATTERN} | sed -e 's/@@id@@/quality_'$(printf "%02d" $i)'0/' -e 's/@@format@@/jpg/')
 
         download_image "${ipvx}" "${proto}" "${image_id}" "${WORKDIR}"
         check_image "${ipvx}" "${proto}" "${image_id}" "${WORKDIR}"
+        clear_image "${ipvx}" "${proto}" "${image_id}" "${WORKDIR}"
       done
     done
   done
