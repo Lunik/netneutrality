@@ -61,7 +61,7 @@ function download_file() {
   file_path="${3}"
   file_id="${4}"
   workdir="${5}"
-  curl -sSL -"${ipvx}" "${proto}://ipv${ipvx}.${BASE_HOSTNAME}/${file_path}/${file_id}" > "${workdir}/${ipvx}_${proto}_${file_id}"
+  curl -sSL -"${ipvx}" "${proto}://ipv${ipvx}.${BASE_HOSTNAME}/${file_path}/${file_id}" > "${workdir}/${ipvx}_${proto}_${file_id}" 2>/dev/null
 }
 
 function check_file() {
@@ -79,7 +79,6 @@ function check_file() {
   else
     KO "KO"
     printf " - Got ${calculated_hashsum} instead of ${real_hashsum}\n"
-    exit 1
   fi
 }
 
@@ -96,7 +95,9 @@ function check_times() {
   times="${1}"
 
   standard_deviation=$(echo -e "${times}" | awk '{sum+=$1; sumsq+=$1*$1}END{print sqrt(sumsq/NR - (sum/NR)**2)}')
+  echo -e "\n==========\n"
   echo -e "Standard Deviation:\t ${standard_deviation}s"
+  echo -e "\n==========\n"
 }
 
 function resume() {
@@ -167,12 +168,23 @@ function main() {
           start_at=$(date +%s)
           printf "Downloading file \"ipv${ipvx} ${proto} - ${file_id}\":\t"
           download_file "${ipvx}" "${proto}" "${file_path}" "${file_id}" "${WORKDIR}"
-          end_at=$(date +%s)
-          delta=$((end_at-start_at))
-          printf "$(date -r ${delta} +%Mm%Ss)\n"
-          times="${times}${delta}\n"
+          if [ "$?" -eq "0" ]; then
+            end_at=$(date +%s)
 
-          check_file "${ipvx}" "${proto}" "${file_id}" "${WORKDIR}"
+            delta=$((end_at-start_at))
+            uname -a | grep "Darwin" > /dev/null 2>&1
+            if [ "$?" -eq "0" ]; then
+              printf "$(date -r ${delta} +%Mm%Ss)\n"
+            else
+              printf "$(date -d "@${delta}" +%Mm%Ss)\n"
+            fi
+            times="${times}${delta}\n"
+
+            check_file "${ipvx}" "${proto}" "${file_id}" "${WORKDIR}"
+          else
+            KO "KO"
+            printf " - Unable to download the file\n"
+          fi
           clear_file "${ipvx}" "${proto}" "${file_id}" "${WORKDIR}"
         done
       done
