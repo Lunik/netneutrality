@@ -14,6 +14,8 @@ BASE_HOSTNAME=bouygues.testdebit.info
 BASE_URI_PATTERN=@@size@@
 FILE_FORMAT="3gp 7z aac aif apk asf au avi bin bz2 c com css dat deb divx dmg doc docx exe file flv gdf gif gz h hqx htm html ipa iso jpeg jpg js mka mks mkv mov mp3 mp4 mpg msi odp ods odt ova pdf php png ppt pptx rar raw rmvb rpm sea sit snap svg swf tar bz2 gz xz tgz ttf txt u unknown uu vqf wav webm webp wma wmv woff2 xls xlsx xml xvid xyz xz zip"
 FILE_SIZE="0 1 5 10 50 100 500 1k 5k 10k 50k 100k 500k 1M 5M 10M 50M 100M 1G 10G"
+SERVER_PORTS_HTTPS="443 444 554 585 843 1194 1935 5060 5061 6881 8080 8443 9001"
+SERVER_PORTS_HTTP="80 81"
 
 FILE_PATTERN=@@size@@.@@format@@
 
@@ -58,20 +60,22 @@ function hash_calc() {
 function download_file() {
   ipvx="${1}"
   proto="${2}"
-  file_path="${3}"
-  file_id="${4}"
-  workdir="${5}"
-  curl -sSL -"${ipvx}" "${proto}://ipv${ipvx}.${BASE_HOSTNAME}/${file_path}/${file_id}" > "${workdir}/${ipvx}_${proto}_${file_id}" 2>/dev/null
+  port="${3}"
+  file_path="${4}"
+  file_id="${5}"
+  workdir="${6}"
+  curl -sSL -"${ipvx}" "${proto}://ipv${ipvx}.${BASE_HOSTNAME}:${port}/${file_path}/${file_id}" > "${workdir}/${ipvx}_${proto}_${port}_${file_id}" 2>/dev/null
 }
 
 function check_file() {
   TOTAL_CHECK=$((TOTAL_CHECK+1))
   ipvx="${1}"
   proto="${2}"
-  file_id="${3}"
-  workdir="${4}"
-  printf "Checking file \"ipv${ipvx} ${proto} - ${file_id}\":\t\t"
-  calculated_hashsum=$(hash_calc "${workdir}/${ipvx}_${proto}_${file_id}")
+  port="${3}"
+  file_id="${4}"
+  workdir="${5}"
+  printf "Checking file \"ipv${ipvx} ${proto} :${port} - ${file_id}\":\t\t"
+  calculated_hashsum=$(hash_calc "${workdir}/${ipvx}_${proto}_${port}_${file_id}")
   real_hashsum=$(get_checksum "${file_id}")
   if [ "${calculated_hashsum}" == "${real_hashsum}" ]; then
     OK_CHECK=$((OK_CHECK+1))
@@ -85,10 +89,11 @@ function check_file() {
 function clear_file() {
   ipvx="${1}"
   proto="${2}"
-  file_id="${3}"
-  workdir="${4}"
+  port="${3}"
+  file_id="${4}"
+  workdir="${5}"
   
-  rm "${workdir}/${ipvx}_${proto}_${file_id}"
+  rm "${workdir}/${ipvx}_${proto}_${port}_${file_id}"
 }
 
 function check_times() {
@@ -161,31 +166,38 @@ function main() {
     times=""
     for format in $FILE_FORMAT; do
       for proto in http https; do
-        for ipvx in 4 6; do
-          file_id=$(echo ${FILE_PATTERN} | sed -e 's/@@size@@/'${size}'/' -e 's/@@format@@/'${format}'/')
-          file_path=$(echo ${BASE_URI_PATTERN} | sed -e 's/@@size@@/'${size}'/')
+        if [ "$proto" == "https" ]; then
+          PORTS="$SERVER_PORTS_HTTPS"
+        elif [ "$proto" == "http" ]; then
+          PORTS="$SERVER_PORTS_HTTP"
+        fi
+        for port in $PORTS; do
+          for ipvx in 4 6; do
+            file_id=$(echo ${FILE_PATTERN} | sed -e 's/@@size@@/'${size}'/' -e 's/@@format@@/'${format}'/')
+            file_path=$(echo ${BASE_URI_PATTERN} | sed -e 's/@@size@@/'${size}'/')
 
-          start_at=$(date +%s)
-          printf "Downloading file \"ipv${ipvx} ${proto} - ${file_id}\":\t"
-          download_file "${ipvx}" "${proto}" "${file_path}" "${file_id}" "${WORKDIR}"
-          if [ "$?" -eq "0" ]; then
-            end_at=$(date +%s)
-
-            delta=$((end_at-start_at))
-            uname -a | grep "Darwin" > /dev/null 2>&1
+            start_at=$(date +%s)
+            printf "Downloading file \"ipv${ipvx} ${proto} :${port} - ${file_id}\":\t"
+            download_file "${ipvx}" "${proto}" "${port}" "${file_path}" "${file_id}" "${WORKDIR}"
             if [ "$?" -eq "0" ]; then
-              printf "$(date -r ${delta} +%Mm%Ss)\n"
-            else
-              printf "$(date -d "@${delta}" +%Mm%Ss)\n"
-            fi
-            times="${times}${delta}\n"
+              end_at=$(date +%s)
 
-            check_file "${ipvx}" "${proto}" "${file_id}" "${WORKDIR}"
-          else
-            KO "KO"
-            printf " - Unable to download the file\n"
-          fi
-          clear_file "${ipvx}" "${proto}" "${file_id}" "${WORKDIR}"
+              delta=$((end_at-start_at))
+              uname -a | grep "Darwin" > /dev/null 2>&1
+              if [ "$?" -eq "0" ]; then
+                printf "$(date -r ${delta} +%Mm%Ss)\n"
+              else
+                printf "$(date -d "@${delta}" +%Mm%Ss)\n"
+              fi
+              times="${times}${delta}\n"
+
+              check_file "${ipvx}" "${proto}" "${port}" "${file_id}" "${WORKDIR}"
+            else
+              KO "KO"
+              printf " - Unable to download the file\n"
+            fi
+            clear_file "${ipvx}" "${proto}" "${port}" "${file_id}" "${WORKDIR}"
+          done
         done
       done
     done
